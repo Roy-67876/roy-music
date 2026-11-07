@@ -2932,7 +2932,23 @@ Take me back`,
       }
     });
 
-    // ===== 睡眠定时器（N 分钟后停止播放，N 手动输入）=====
+    // ===== 睡眠定时器（N 分钟后停止播放，N 手动输入，上限 999 分钟）=====
+    const SLEEP_MAX_MINUTES = 999;
+    const SLEEP_LIMIT_MSG = '输入的值必须小于或等于999';
+    let sleepOverLimitWarned = false;   // 连续输入超限值只弹一次提示
+    // 手动输入时即时校验：超过上限立即弹出文本提示
+    function onSleepInput() {
+      const inp = document.getElementById('sleepMinutes');
+      const v = Number(inp.value);
+      if (inp.value !== '' && Number.isFinite(v) && v > SLEEP_MAX_MINUTES) {
+        if (!sleepOverLimitWarned) {
+          showToast(SLEEP_LIMIT_MSG);
+          sleepOverLimitWarned = true;
+        }
+      } else {
+        sleepOverLimitWarned = false;
+      }
+    }
     function isModalOpen() {
       return document.getElementById('confirmModal').style.display === 'flex'
         || document.getElementById('sleepModal').style.display === 'flex';
@@ -2949,6 +2965,7 @@ Take me back`,
       const inp = document.getElementById('sleepMinutes');
       const st = document.getElementById('sleepStatus');
       const cb = document.getElementById('sleepCancelBtn');
+      sleepOverLimitWarned = false;
       if (sleepTimer) {
         inp.value = Math.max(1, Math.ceil((sleepEndsAt - Date.now()) / 60000));
         st.textContent = '定时进行中：剩余约 ' + remainingSleepText();
@@ -2964,8 +2981,14 @@ Take me back`,
     }
     function startSleep() {
       const inp = document.getElementById('sleepMinutes');
-      let min = parseInt(inp.value, 10);
-      if (!min || min <= 0) { showToast('请输入有效的分钟数'); return; }
+      const raw = Number(inp.value);
+      const min = parseInt(inp.value, 10);
+      if (!min || min <= 0 || !Number.isFinite(raw)) { showToast('请输入有效的分钟数'); return; }
+      if (raw > SLEEP_MAX_MINUTES) {
+        showToast(SLEEP_LIMIT_MSG);
+        inp.focus(); inp.select();
+        return;
+      }
       if (sleepTimer) { clearTimeout(sleepTimer); sleepTimer = null; }
       if (sleepTick) { clearInterval(sleepTick); sleepTick = null; }
       const ms = min * 60000;
@@ -3343,7 +3366,7 @@ Take me back`,
       <div class="modal-body">
         <p style="margin-bottom:12px;">设置时长后，点击按钮启动定时</p>
         <div class="sleep-input-row">
-          <input type="number" id="sleepMinutes" min="1" max="600" value="15" class="sleep-input" />
+          <input type="number" id="sleepMinutes" min="1" max="999" value="15" class="sleep-input" oninput="onSleepInput()" />
           <span>分钟</span>
         </div>
         <div id="sleepStatus" class="sleep-status"></div>
